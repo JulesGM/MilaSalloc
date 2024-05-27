@@ -1,25 +1,17 @@
 #!/usr/bin/env python
-import enum
+import functools
 import itertools
 import logging
-import os
 
 import fire
 import rich
 import rich.traceback
 
 import salloc_lib
-import subprocess as sp
 
 
 rich.traceback.install()
 LOGGER = logging.getLogger()
-
-
-class Partitions(enum.Enum):
-    LONG = "long"
-    MAIN = "main"
-    UNKILLABLE = "unkillable"
 
 
 def prep_command(executable, num_gpus, num_nodes, partition, extra_kwargs):
@@ -27,16 +19,16 @@ def prep_command(executable, num_gpus, num_nodes, partition, extra_kwargs):
 
     print(f"{partition = }")
 
-    if partition == Partitions.UNKILLABLE:
+    if partition == salloc_lib.Partitions.UNKILLABLE:
         num_gpus = 1
         mem = 32
         cpus = 5
-    elif partition == Partitions.MAIN:
+    elif partition == salloc_lib.Partitions.MAIN:
         num_gpus = 2
         mem = 48
         cpus = 8
     else:
-        assert partition == Partitions.LONG, partition
+        assert partition == salloc_lib.Partitions.LONG, partition
         mem = num_gpus * 100
         cpus = num_gpus * 10
 
@@ -56,22 +48,5 @@ def prep_command(executable, num_gpus, num_nodes, partition, extra_kwargs):
     return args
 
 
-def main(num_gpus=1, num_nodes=1, *, unkillable=False, main=False):
-
-    assert isinstance(unkillable, bool), type(unkillable)
-    assert isinstance(main, bool), type(main)
-    assert ((not unkillable) and (not main)) or (unkillable ^ main), f"{unkillable = }, {main = }"
-    partition = Partitions.LONG
-    if unkillable:
-        partition = Partitions.UNKILLABLE
-    elif main:
-        partition = Partitions.MAIN
-
-    executable = "salloc"
-    command = prep_command(executable, num_gpus, num_nodes, partition, {})
-    os.execvp(executable, command)
-
-
 if __name__ == "__main__":
-    # salloc_lib.start(prep_command)
-    fire.Fire(main)
+    fire.Fire(functools.partial(salloc_lib.main(prep_command)))
